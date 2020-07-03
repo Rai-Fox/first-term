@@ -82,7 +82,7 @@ vector<T>::vector(T const* data, size_t size, size_t capacity) {
 
 template<typename T>
 vector<T>::vector(vector const& other) :
-vector<T>::vector(other.data_, other.size_, other.size_) {}
+vector(other.data_, other.size_, other.size_) {}
 
 template<typename T>
 vector<T>::~vector() {
@@ -160,9 +160,10 @@ T const& vector<T>::back() const {
 
 template<typename T>
 void vector<T>::swap(vector& other) {
-    std::swap(other.data_, data_);
-    std::swap(other.size_, size_);
-    std::swap(other.capacity_, capacity_);
+	using std::swap;
+    swap(other.data_, data_);
+    swap(other.size_, size_);
+    swap(other.capacity_, capacity_);
 }
 
 template<typename T>
@@ -222,46 +223,41 @@ void vector<T>::reserve(size_t new_capacity) {
 
 template<typename T>
 typename vector<T>::iterator vector<T>::insert(iterator pos, T const& el) {
+	using std::swap;
 	ptrdiff_t ind = pos - data_;
 	push_back(el);
 	for (size_t i = size_ - 1; i > ind; i--)
-		std::swap(data_[i], data_[i - 1]);
+		swap(data_[i], data_[i - 1]);
 	return begin() + ind;
 }
 
 template<typename T>
 typename vector<T>::iterator vector<T>::insert(const_iterator pos, T const& el) {
+	using std::swap;
 	ptrdiff_t ind = pos - data_;
 	push_back(el);
-	for (size_t i = size_ - 1; i != i > ind; i--)
-		std::swap(data_[i], data_[i - 1]);
+	for (size_t i = size_ - 1; i > ind; i--)
+		swap(data_[i], data_[i - 1]);
 	return begin() + ind;
 }
 
 template<typename T>
 typename vector<T>::iterator vector<T>::erase(iterator pos) {
-	ptrdiff_t ind = pos - data_;
-	for (; ind != size_ - 1; ind++)
-		std::swap(data_[ind], data_[ind + 1]);
-	pop_back();
-	return begin() + ind;
+	return erase(pos, pos + 1);
 }
 
 template<typename T>
 typename vector<T>::iterator vector<T>::erase(const_iterator pos) {
-	ptrdiff_t ind = pos - data_;
-	for (; ind != size_ - 1; ind++)
-		std::swap(data_[ind], data_[ind + 1]);
-	pop_back();
-	return begin() + ind;
+	return erase(pos, pos + 1);
 }
 
 template<typename T>
 typename vector<T>::iterator vector<T>::erase(iterator first, iterator last) {
+	using std::swap;
 	ptrdiff_t ind = first - data_;
 	ptrdiff_t len = last - first;
 	for (; ind != size_ - len; ind++)
-		std::swap(data_[ind], data_[ind + len]);
+		swap(data_[ind], data_[ind + len]);
 	while (len--) {
 		pop_back();
 	}
@@ -270,10 +266,11 @@ typename vector<T>::iterator vector<T>::erase(iterator first, iterator last) {
 
 template<typename T>
 typename vector<T>::iterator vector<T>::erase(const_iterator first, const_iterator last) {
+	using std::swap;
 	ptrdiff_t ind = first - data_;
 	ptrdiff_t len = last - first;
 	for (; ind != size_ - len; ind++)
-		std::swap(data_[ind], data_[ind + len]);
+		swap(data_[ind], data_[ind + len]);
 	while (len--) {
 		pop_back();
 	}
