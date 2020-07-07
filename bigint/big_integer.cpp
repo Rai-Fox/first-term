@@ -1,242 +1,215 @@
 #include "big_integer.h"
 
-#include <cstring>
-#include <stdexcept>
+#define _POSITIVE (false)
+#define _NEGATIVE (true)
 
-big_integer::big_integer()
-{
-    mpz_init(mpz);
+void big_integer::normalize() {
+	while (!digits_.empty() && digits_.back() == 0) {
+		this->digits_.pop_back();
+	}
+	if (digits_.empty())
+		sign_ = _POSITIVE;
 }
 
-big_integer::big_integer(big_integer const& other)
-{
-    mpz_init_set(mpz, other.mpz);
+void big_integer::resize_digits(size_t size) {
+	normalize();
+	while (digits_.size() != size) {
+		digits_.push_back(0);
+	}
 }
 
-big_integer::big_integer(int a)
-{
-    mpz_init_set_si(mpz, a);
+big_integer abs(big_integer const& a) {
+	big_integer result(a);
+	result.sign_ = _POSITIVE;
+	return result;
 }
 
-big_integer::big_integer(std::string const& str)
-{
-    if (mpz_init_set_str(mpz, str.c_str(), 10))
-    {
-        mpz_clear(mpz);
-        throw std::runtime_error("invalid string");
+void swap(big_integer& a, big_integer& b) {
+	big_integer tmp = a;
+	a = b;
+	b = tmp;
+}
+
+big_integer::big_integer() : digits_(), sign_(_POSITIVE) {}
+
+big_integer::big_integer(big_integer const& a) {
+	this->digits_ = a.digits_;
+	this->sign_ = a.sign_;
+}
+
+big_integer::big_integer(int a) {
+	if (a < 0) {
+        this->sign_ = _NEGATIVE;
     }
+	if (a != 0)
+	    this->digits_.push_back(uint32_t(abs(a)));
 }
 
-big_integer::~big_integer()
-{
-    mpz_clear(mpz);
+big_integer::big_integer(std::string const& str) {
+	for (const char &c : str) {
+		if (c == '+' || c == '-') {
+			continue;
+		} else {
+			*this *= 10;
+			*this += (c - '0');
+		}
+	}
+    this->sign_ = (str[0] == '-' ? _NEGATIVE : _POSITIVE);
 }
 
-big_integer& big_integer::operator=(big_integer const& other)
-{
-    mpz_set(mpz, other.mpz);
-    return *this;
+big_integer& big_integer::operator=(big_integer const& other) {
+	this->sign_ = other.sign_;
+	this->digits_ = other.digits_;
+	return *this;
 }
 
-big_integer& big_integer::operator+=(big_integer const& rhs)
-{
-    mpz_add(mpz, mpz, rhs.mpz);
-    return *this;
+big_integer operator+(big_integer const& _a, big_integer const& _b) {
+	if (_a.sign_ == _b.sign_) {
+		big_integer result;
+		big_integer a(abs(_a));
+		big_integer b(abs(_b));
+		size_t max_size = std::max(a.digits_.size(), b.digits_.size());
+		a.resize_digits(max_size);
+		b.resize_digits(max_size);
+		uint32_t carry = 0;
+		result.sign_ = _a.sign_;
+		for (size_t i = 0; i < max_size; i++) {
+			if (a.digits_[i] == UINT32_MAX && carry == 1) {
+				result.digits_.push_back(b.digits_[i]);
+				carry = 1;
+			} else {
+				a.digits_[i] += carry;
+				carry = (a.digits_[i] + b.digits_[i] < a.digits_[i]);
+				result.digits_.push_back(a.digits_[i] + b.digits_[i]);
+			}
+		}
+		if (carry != 0) {
+			result.digits_.push_back(1);
+		}
+		result.normalize();
+		return result;
+	} else {
+		return _a - (-_b);
+	}
 }
 
-big_integer& big_integer::operator-=(big_integer const& rhs)
-{
-    mpz_sub(mpz, mpz, rhs.mpz);
-    return *this;
+big_integer operator-(big_integer const& _a, big_integer const& _b) {
+	if (_a.sign_ == _b.sign_) {
+		big_integer result;
+		big_integer a(abs(_a));
+		big_integer b(abs(_b));
+		size_t max_size = std::max(a.digits_.size(), b.digits_.size());
+		a.resize_digits(max_size);
+		b.resize_digits(max_size);
+		uint32_t carry = 0;
+		if (a < b) {
+			result.sign_ = _b.sign_;
+			swap(a, b);
+		} else {
+			result.sign_ = _a.sign_;
+		}
+		for (size_t i = 0; i < max_size; i++) {
+			if (carry == 1 && a.digits_[i] == 0) {
+				result.digits_.push_back(UINT32_MAX - b.digits_[i]);
+				carry = 1;
+			} else {
+				a.digits_[i] -= carry;
+				carry = (b.digits_[i] > a.digits_[i]);
+				result.digits_.push_back(a.digits_[i] - b.digits_[i]);
+			}
+		}
+		result.normalize();
+		return result;
+	} else {
+		return _a + (-_b);
+	}
+
 }
 
-big_integer& big_integer::operator*=(big_integer const& rhs)
-{
-    mpz_mul(mpz, mpz, rhs.mpz);
-    return *this;
+big_integer operator*(big_integer const& _a, big_integer const& _b) {
+	big_integer result;
+	big_integer a(_a);
+	big_integer b(_b);
+	result.resize_digits(a.digits_.size() + b.digits_.size() + 1);
+	result.sign_ = (a.sign_ ^ b.sign_ ? _NEGATIVE : _POSITIVE);
+	for (size_t i = 0; i < a.digits_.size(); i++) {
+		uint32_t carry = 0;
+		for (size_t j = 0; j < b.digits_.size(); j++) {
+			uint64_t mul = (uint64_t(a.digits_[i])) * b.digits_[j] + result.digits_[i + j] + carry;
+			result.digits_[i + j] = mul;
+			carry = uint32_t(mul >> uint64_t(32));
+		}
+		result.digits_[i + b.digits_.size()] += carry;
+	}
+	result.normalize();
+	return result;
 }
 
-big_integer& big_integer::operator/=(big_integer const& rhs)
-{
-    mpz_tdiv_q(mpz, mpz, rhs.mpz);
-    return *this;
+big_integer operator/(big_integer const& _a, big_integer const& _b) {
+	return big_integer();
+}	
+
+big_integer big_integer::operator+() const {
+	return big_integer(*this);
 }
 
-big_integer& big_integer::operator%=(big_integer const& rhs)
-{
-    mpz_tdiv_r(mpz, mpz, rhs.mpz);
-    return *this;
+big_integer big_integer::operator-() const {
+	big_integer result(*this);
+	if (!this->digits_.empty())
+	    result.sign_ ^= true;
+	return result;
 }
 
-big_integer& big_integer::operator&=(big_integer const& rhs)
-{
-    mpz_and(mpz, mpz, rhs.mpz);
-    return *this;
+big_integer& big_integer::operator+=(big_integer const& other) {
+	*this = *this + other;
+	return *this;
 }
 
-big_integer& big_integer::operator|=(big_integer const& rhs)
-{
-    mpz_ior(mpz, mpz, rhs.mpz);
-    return *this;
+big_integer& big_integer::operator-=(big_integer const& other) {
+	*this = *this - other;
+	return *this;
 }
 
-big_integer& big_integer::operator^=(big_integer const& rhs)
-{
-    mpz_xor(mpz, mpz, rhs.mpz);
-    return *this;
+big_integer& big_integer::operator*=(big_integer const& other) {
+	*this = *this * other;
+	return *this;
 }
 
-big_integer& big_integer::operator<<=(int rhs)
-{
-    mpz_mul_2exp(mpz, mpz, rhs);
-    return *this;
+bool operator<(big_integer const& _a, big_integer const& _b) {
+	if (_a.sign_ != _b.sign_)
+		return _b.sign_ == _POSITIVE;
+	big_integer a(_a);
+	big_integer b(_b);
+	size_t max_size = std::max(a.digits_.size(), b.digits_.size());
+	a.resize_digits(max_size);
+	b.resize_digits(max_size);
+	for (size_t i = max_size; i > 0; i--) {
+		if (a.digits_[i - 1] != b.digits_[i - 1]) {
+			return (a.sign_ == _NEGATIVE) ^ (a.digits_[i - 1] < b.digits_[i - 1]);
+		}
+	}
+	return false;
 }
 
-big_integer& big_integer::operator>>=(int rhs)
-{
-    mpz_div_2exp(mpz, mpz, rhs);
-    return *this;
+bool operator>(big_integer const& a, big_integer const& b) {
+	return b < a;
 }
 
-big_integer big_integer::operator+() const
-{
-    return *this;
+bool operator==(big_integer const& a, big_integer const& b) {
+	return !(a < b) && !(a > b)
 }
 
-big_integer big_integer::operator-() const
-{
-    big_integer r;
-    mpz_neg(r.mpz, mpz);
-    return r;
+bool operator!=(big_integer const& a, big_integer const& b) {
+	return !(a == b);
 }
 
-big_integer big_integer::operator~() const
-{
-    big_integer r;
-    mpz_com(r.mpz, mpz);
-    return r;
+bool operator<=(big_integer const& a, big_integer const& b) {
+	return !(a > b);
 }
 
-big_integer& big_integer::operator++()
-{
-    mpz_add_ui(mpz, mpz, 1);
-    return *this;
+bool operator>=(big_integer const& a, big_integer const& b) {
+	return !(a < b);
 }
 
-big_integer big_integer::operator++(int)
-{
-    big_integer r = *this;
-    ++*this;
-    return r;
-}
-
-big_integer& big_integer::operator--()
-{
-    mpz_sub_ui(mpz, mpz, 1);
-    return *this;
-}
-
-big_integer big_integer::operator--(int)
-{
-    big_integer r = *this;
-    --*this;
-    return r;
-}
-
-big_integer operator+(big_integer a, big_integer const& b)
-{
-    return a += b;
-}
-
-big_integer operator-(big_integer a, big_integer const& b)
-{
-    return a -= b;
-}
-
-big_integer operator*(big_integer a, big_integer const& b)
-{
-    return a *= b;
-}
-
-big_integer operator/(big_integer a, big_integer const& b)
-{
-    return a /= b;
-}
-
-big_integer operator%(big_integer a, big_integer const& b)
-{
-    return a %= b;
-}
-
-big_integer operator&(big_integer a, big_integer const& b)
-{
-    return a &= b;
-}
-
-big_integer operator|(big_integer a, big_integer const& b)
-{
-    return a |= b;
-}
-
-big_integer operator^(big_integer a, big_integer const& b)
-{
-    return a ^= b;
-}
-
-big_integer operator<<(big_integer a, int b)
-{
-    return a <<= b;
-}
-
-big_integer operator>>(big_integer a, int b)
-{
-    return a >>= b;
-}
-
-bool operator==(big_integer const& a, big_integer const& b)
-{
-    return mpz_cmp(a.mpz, b.mpz) == 0;
-}
-
-bool operator!=(big_integer const& a, big_integer const& b)
-{
-    return mpz_cmp(a.mpz, b.mpz) != 0;
-}
-
-bool operator<(big_integer const& a, big_integer const& b)
-{
-    return mpz_cmp(a.mpz, b.mpz) < 0;
-}
-
-bool operator>(big_integer const& a, big_integer const& b)
-{
-    return mpz_cmp(a.mpz, b.mpz) > 0;
-}
-
-bool operator<=(big_integer const& a, big_integer const& b)
-{
-    return mpz_cmp(a.mpz, b.mpz) <= 0;
-}
-
-bool operator>=(big_integer const& a, big_integer const& b)
-{
-    return mpz_cmp(a.mpz, b.mpz) >= 0;
-}
-
-std::string to_string(big_integer const& a)
-{
-    char* tmp = mpz_get_str(NULL, 10, a.mpz);
-    std::string res = tmp;
-
-    void (*freefunc)(void*, size_t);
-    mp_get_memory_functions (NULL, NULL, &freefunc);
-
-    freefunc(tmp, strlen(tmp) + 1);
-
-    return res;
-}
-
-std::ostream& operator<<(std::ostream& s, big_integer const& a)
-{
-    return s << to_string(a);
-}
+#undef _POSITIVE
+#undef _NEGATIVE
