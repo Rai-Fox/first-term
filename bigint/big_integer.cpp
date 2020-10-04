@@ -159,7 +159,6 @@ big_integer operator*(big_integer const& _a, big_integer const& _b) {
 }
 
 uint32_t count_lz(uint32_t x) {
-	uint32_t ans = 0;
 	for (uint32_t i = 31; i > 0; i--) {
 		if (x & (1u << i))
 			return 31u - i;
