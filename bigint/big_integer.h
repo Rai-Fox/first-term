@@ -11,11 +11,21 @@ struct big_integer {
 private:
 	std::vector<uint32_t> digits_;
 	bool sign_ = false;
+
+	big_integer(uint32_t a);
 	void resize_digits(size_t size);
 	void normalize();
 	friend big_integer abs(big_integer const&);
-	friend void swap(big_integer &, big_integer &);
+	friend void swap(big_integer&, big_integer&);
+	friend big_integer div_long_short(big_integer const&, uint32_t);
+	friend uint32_t trial(big_integer const&, big_integer const&);
+	friend uint32_t get_digit(big_integer const&, size_t);
+	friend bool less(big_integer const&, big_integer const&, size_t);
+	friend void difference(big_integer&, big_integer const&, size_t);
+	friend big_integer bit_operation(big_integer, big_integer, uint32_t(*op)(uint32_t, uint32_t));
+	uint32_t count_lz(uint32_t);
 public:
+	friend big_integer to_complement(big_integer, size_t size);
 	big_integer();
 	big_integer(big_integer const& a);
 	big_integer(int a);
@@ -26,34 +36,44 @@ public:
 	friend big_integer operator+(big_integer const& a, big_integer const& b);
 	friend big_integer operator-(big_integer const& a, big_integer const& b);
 	friend big_integer operator*(big_integer const& a, big_integer const& b);
-	//friend big_integer operator/(big_integer const& a, big_integer const& b);
-	//friend big_integer operator%(big_integer const& a, big_integer const& b);
+	friend big_integer operator/(big_integer const& a, big_integer const& b);
+	friend big_integer operator%(big_integer const& a, big_integer const& b);
 
-	//friend big_integer operator&(big_integer const& a, big_integer const& b);
-	//friend big_integer operator|(big_integer const& a, big_integer const& b);
-	//friend big_integer operator^(big_integer const& a, big_integer const& b);
+	friend big_integer operator&(big_integer const& a, big_integer const& b);
+	friend big_integer operator|(big_integer const& a, big_integer const& b);
+	friend big_integer operator^(big_integer const& a, big_integer const& b);
+
+	friend big_integer operator<<(big_integer a, int b);
+	friend big_integer operator>>(big_integer a, int b);
 
 	big_integer operator+() const;
 	big_integer operator-() const;
-	//big_integer operator~() const;
+	big_integer& operator++();
+	big_integer& operator--();
+	big_integer operator++(int);
+	big_integer operator--(int);
+	big_integer operator~() const;
 
 	big_integer& operator+=(big_integer const&);
 	big_integer& operator-=(big_integer const&);
 	big_integer& operator*=(big_integer const&);
-	/*big_integer& operator/=(big_integer const&);
+	big_integer& operator/=(big_integer const&);
 	big_integer& operator%=(big_integer const&);
 
 	big_integer& operator&=(big_integer const&);
 	big_integer& operator|=(big_integer const&);
-	big_integer& operator^=(big_integer const&);*/
+	big_integer& operator^=(big_integer const&);
 
-	friend bool operator==(big_integer const&, big_integer const&);		
+	big_integer& operator<<=(int rhs);
+	big_integer& operator>>=(int rhs);
+
+	friend bool operator==(big_integer const&, big_integer const&);
 	friend bool operator!=(big_integer const&, big_integer const&);
 	friend bool operator<(big_integer const&, big_integer const&);
 	friend bool operator>(big_integer const&, big_integer const&);
 	friend bool operator<=(big_integer const&, big_integer const&);
 	friend bool operator>=(big_integer const&, big_integer const&);
 
-	//friend std::string to_string(big_integer const& a);
-};	
+	friend std::string to_string(big_integer a);
+};
 #endif // BIG_INTEGER_H
