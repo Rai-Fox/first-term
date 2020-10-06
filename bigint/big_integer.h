@@ -19,25 +19,25 @@ private:
 	friend void swap(big_integer&, big_integer&);
 	friend big_integer div_long_short(big_integer const&, uint32_t);
 	friend uint32_t trial(big_integer const&, big_integer const&);
-	friend uint32_t get_digit(big_integer const&, size_t);
+	friend uint32_t get_digit(big_integer const&, size_t, bool);
 	friend bool less(big_integer const&, big_integer const&, size_t);
 	friend void difference(big_integer&, big_integer const&, size_t);
-	friend big_integer bit_operation(big_integer, big_integer, uint32_t(*op)(uint32_t, uint32_t));
-	uint32_t count_lz(uint32_t);
+	friend big_integer bit_operation(big_integer, big_integer const&, uint32_t(*op)(uint32_t, uint32_t));
+	friend uint32_t count_lz(uint32_t);
+	big_integer to_complement(size_t size);
 public:
-	friend big_integer to_complement(big_integer, size_t size);
-	big_integer();
-	big_integer(big_integer const& a);
+	big_integer() = default;
+	big_integer(big_integer const& a) = default;
 	big_integer(int a);
 	explicit big_integer(std::string const& str);
 
-	big_integer& operator=(big_integer const& other);
+	big_integer& operator=(big_integer const& other) = default;
 
-	friend big_integer operator+(big_integer const& a, big_integer const& b);
-	friend big_integer operator-(big_integer const& a, big_integer const& b);
-	friend big_integer operator*(big_integer const& a, big_integer const& b);
-	friend big_integer operator/(big_integer const& a, big_integer const& b);
-	friend big_integer operator%(big_integer const& a, big_integer const& b);
+	friend big_integer operator+(big_integer a, big_integer const& b);
+	friend big_integer operator-(big_integer a, big_integer const& b);
+	friend big_integer operator*(big_integer a, big_integer const& b);
+	friend big_integer operator/(big_integer a, big_integer const& b);
+	friend big_integer operator%(big_integer a, big_integer const& b);
 
 	friend big_integer operator&(big_integer const& a, big_integer const& b);
 	friend big_integer operator|(big_integer const& a, big_integer const& b);
