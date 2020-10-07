@@ -163,57 +163,58 @@ big_integer big_integer::operator-() const {
 	return result;
 }
 
-big_integer& big_integer::operator+=(big_integer const& b) {
-	if (b.digits_.empty()) {
-		return *this;
+void big_integer::sum(big_integer const& b) {
+	size_t max_size = std::max(digits_.size(), b.digits_.size());
+	resize_digits(max_size);
+	uint64_t carry = 0;
+	for (size_t i = 0; i < max_size; i++) {
+		uint64_t tmp = static_cast<uint64_t>(digits_[i]) + static_cast<uint64_t>(get_digit(b, i)) + carry;
+		carry = tmp > static_cast<uint64_t>(UINT32_MAX);
+		digits_[i] = static_cast<uint32_t>(tmp);
 	}
-	if (sign_ == b.sign_) {
-		size_t max_size = std::max(digits_.size(), b.digits_.size());
-		resize_digits(max_size);
-		uint64_t carry = 0;
-		for (size_t i = 0; i < max_size; i++) {
-			uint64_t tmp = static_cast<uint64_t>(digits_[i]) + static_cast<uint64_t>(get_digit(b, i)) + carry;
-			carry = tmp > static_cast<uint64_t>(UINT32_MAX);
-			digits_[i] = static_cast<uint32_t>(tmp);
+	if (carry)
+		digits_.push_back(carry);
+	normalize();
+}
+
+void big_integer::subtract(big_integer const& b) {
+	bool a_sign = sign_;
+	sign_ = b.sign_;
+	bool less = (*this < b) ^ b.sign_;
+	sign_ = a_sign ^ less;
+	size_t max_size = std::max(digits_.size(), b.digits_.size());
+	resize_digits(max_size);
+	uint64_t carry = 0, tmp = 0;
+	for (size_t i = 0; i < max_size; i++) {
+		if (less) {
+			tmp = static_cast<uint64_t>(UINT32_MAX) + 1ull - carry +
+				static_cast<uint64_t>(get_digit(b, i)) - static_cast<uint64_t>(get_digit(*this, i));
+		} else {
+			tmp = static_cast<uint64_t>(UINT32_MAX) + 1ull - carry +
+				static_cast<uint64_t>(get_digit(*this, i)) - static_cast<uint64_t>(get_digit(b, i));
 		}
-		if (carry)
-			digits_.push_back(carry);
-		normalize();
-		return *this;
+		carry = tmp <= static_cast<uint64_t>(UINT32_MAX);
+		digits_[i] = static_cast<uint32_t>(tmp);
+	}
+	normalize();
+}
+
+void big_integer::additive_operation(big_integer const& b, bool is_subtract) {
+	if ((sign_ ^ is_subtract) == b.sign_) {
+		sum(b);
 	} else {
-		return *this -= (-b);
+		subtract(b);
 	}
 }
 
+big_integer& big_integer::operator+=(big_integer const& b) {
+	additive_operation(b, false);
+	return *this;
+}
+
 big_integer& big_integer::operator-=(big_integer const& b) {
-	if (b.digits_.empty()) {
-		return *this;
-	}
-	if (sign_ == b.sign_) {
-		big_integer result;
-		bool a_sign = sign_;
-		sign_ = b.sign_;
-		bool less = (*this < b) ^ b.sign_;
-		sign_ = a_sign ^ less;
-		size_t max_size = std::max(digits_.size(), b.digits_.size());
-		resize_digits(max_size);
-		uint64_t carry = 0, tmp = 0;
-		for (size_t i = 0; i < max_size; i++) {
-			if (less) {
-				tmp = static_cast<uint64_t>(UINT32_MAX) + 1ull - carry +
-					static_cast<uint64_t>(get_digit(b, i)) - static_cast<uint64_t>(get_digit(*this, i));
-			} else {
-				tmp = static_cast<uint64_t>(UINT32_MAX) + 1ull - carry +
-					static_cast<uint64_t>(get_digit(*this, i)) - static_cast<uint64_t>(get_digit(b, i));
-			}
-			carry = tmp <= static_cast<uint64_t>(UINT32_MAX);
-			digits_[i] = static_cast<uint32_t>(tmp);
-		}
-		normalize();
-		return *this;
-	} else {
-		return *this += (-b);
-	}
+	additive_operation(b, true);
+	return *this;
 }
 
 big_integer& big_integer::operator*=(big_integer const& b) {

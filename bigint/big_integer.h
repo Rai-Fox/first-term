@@ -25,6 +25,9 @@ private:
 	friend big_integer bit_operation(big_integer, big_integer const&, uint32_t(*op)(uint32_t, uint32_t));
 	friend uint32_t count_lz(uint32_t);
 	big_integer to_complement(size_t size);
+	void sum(big_integer const&);
+	void subtract(big_integer const&);
+	void additive_operation(big_integer const&, bool);
 public:
 	big_integer() = default;
 	big_integer(big_integer const& a) = default;
