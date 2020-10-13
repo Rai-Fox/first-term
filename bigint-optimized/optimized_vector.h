@@ -4,59 +4,7 @@
 #include <algorithm>
 #include "my_vector.h"
 
-struct optimized_vector {
-private:
-	static constexpr size_t SMALL_SZ = 2;
-	bool is_small_ = true;
-	size_t size_ = 0;
-	union {
-		uint32_t static_vec[SMALL_SZ];
-		my_vector* dynamic_vec;
-	};
-
-	uint32_t& reference_counter() const {
-		return dynamic_vec->reference_count;
-	}
-
-	void swap(optimized_vector& other) {
-		if (is_small_) {
-			size_t old_size = size_;
-			uint32_t old_static_vec[SMALL_SZ];
-			std::copy_n(static_vec, size_, old_static_vec);
-			if (other.is_small_) {
-				std::copy_n(other.static_vec, other.size_, static_vec);
-			} else {
-				dynamic_vec = other.dynamic_vec;
-			}
-			std::copy_n(old_static_vec, old_size, other.static_vec);
-		} else {
-			if (other.is_small_) {
-				my_vector* old_dynamic_vec = dynamic_vec;
-				std::copy_n(other.static_vec, other.size_, static_vec);
-				other.dynamic_vec = old_dynamic_vec;
-			} else {
-				std::swap(other.dynamic_vec, dynamic_vec);
-			}
-		}
-		std::swap(size_, other.size_);
-		std::swap(is_small_, other.is_small_);
-	}
-
-	void make_unique() {
-		if (!is_small_ && reference_counter() > 1) {
-			this->~optimized_vector();
-			dynamic_vec = new my_vector(*dynamic_vec);
-			reference_counter() = 1;
-		}
-	}
-
-	void make_big() {
-		if (is_small_) {
-			dynamic_vec = new my_vector(static_vec, static_vec + size_);
-			is_small_ = false;
-		}
-	}
-
+class optimized_vector {
 public:
 	optimized_vector() : is_small_(true), size_(0) {};
 
@@ -115,11 +63,13 @@ public:
 
 	void push_back(uint32_t x) {
 		make_unique();
-		if (size_ >= SMALL_SZ) {
+		if (size_ == SMALL_SZ) {
 			make_big();
-			dynamic_vec->data.push_back(x);
-		} else {
+		}
+		if (is_small_) {
 			static_vec[size_] = x;
+		} else {
+			dynamic_vec->data.push_back(x);
 		}
 		size_++;
 	}
@@ -133,12 +83,12 @@ public:
 	}
 
 	uint32_t const* begin() const {
-		return is_small_ ? static_vec : &*(dynamic_vec->data.begin());
+		return is_small_ ? static_vec : dynamic_vec->data.data();
 	}
 
 	uint32_t* begin() {
 		make_unique();
-		return is_small_ ? static_vec : &*(dynamic_vec->data.begin());
+		return is_small_ ? static_vec : dynamic_vec->data.data();
 	}
 
 	uint32_t const* end() const {
@@ -146,7 +96,6 @@ public:
 	}
 
 	uint32_t* end() {
-		make_unique();
 		return begin() + size_;
 	}
 
@@ -155,17 +104,78 @@ public:
 		if (size_ + count > SMALL_SZ) {
 			make_big();
 			dynamic_vec->data.insert(dynamic_vec->data.begin() + (begin_ - begin()), count, x);
+		} else {
+			for (uint32_t* it = end() - 1; it >= begin_ + count; it--) {
+				*it = *(it - count);
+			}
+			for (uint32_t* it = begin_; it != begin_ + count; it++) {
+				*it = x;
+			}
 		}
 		size_ += count;
 	}
 
+
 	void erase(uint32_t* begin_, uint32_t* end_) {
 		make_unique();
+		ptrdiff_t count = end_ - begin_;
 		if (!is_small_) {
 			dynamic_vec->data.erase(dynamic_vec->data.begin() + (begin_ - begin()),
 				dynamic_vec->data.begin() + (end_ - begin()));
+		} else {
+			for (uint32_t* it = begin_; it + count != end(); it++) {
+				*it = *(it + count);
+			}
 		}
-		size_ -= std::min(size_, static_cast<size_t>(end_ - begin_));
+		size_ -= count;
 	}
+
+private:
+	static constexpr size_t SMALL_SZ = 2;
+	bool is_small_ = true;
+	size_t size_ = 0;
+	union {
+		uint32_t static_vec[SMALL_SZ];
+		my_vector* dynamic_vec;
+	};
+
+	uint32_t& reference_counter() const {
+		return dynamic_vec->reference_count;
+	}
+
+	void swap_small_big(optimized_vector& other) {
+		my_vector* old_vector = other.dynamic_vec;
+		std::copy_n(static_vec, size_, other.static_vec);
+		dynamic_vec = old_vector;
+	}
+
+	void swap(optimized_vector& other) {
+		if (is_small_ && other.is_small_) {
+			std::swap(static_vec, other.static_vec);
+		} else if (!is_small_ && !other.is_small_) {
+			std::swap(dynamic_vec, other.dynamic_vec);
+		} else if (is_small_) {
+			swap_small_big(other);
+		} else {
+			other.swap_small_big(*this);
+		}
+		std::swap(size_, other.size_);
+		std::swap(is_small_, other.is_small_);
+	}
+
+	void make_unique() {
+		if (!is_small_ && reference_counter() > 1) {
+			reference_counter()--;
+			dynamic_vec = new my_vector(*dynamic_vec);
+		}
+	}
+
+	void make_big() {
+		if (is_small_) {
+			dynamic_vec = new my_vector(static_vec, static_vec + size_);
+			is_small_ = false;
+		}
+	}
+
 };
 #endif //BIGINT_OPTIMIZED_VECTOR_H
