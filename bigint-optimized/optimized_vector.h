@@ -131,7 +131,7 @@ public:
 	}
 
 private:
-	static constexpr size_t SMALL_SZ = 2;
+	static constexpr size_t SMALL_SZ = 5;
 	bool is_small_ = true;
 	size_t size_ = 0;
 	union {
