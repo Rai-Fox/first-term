@@ -22,7 +22,7 @@ _start:
                 call            mul_long_long
 
                 ; write ans from r9
-                lea             rdi, [r9]
+                mov             rdi, r9
                 add             rcx, LEN
                 call            write_long
                 mov             al, 0x0a
