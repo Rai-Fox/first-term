@@ -5,7 +5,7 @@
                 %define         LEN 128
 _start:                                                 
                 ; init
-                sub             rsp, 6 * SIZE
+                sub             rsp, 4 * SIZE
                 mov             rcx, LEN                ; set long size
                 ; read numbers
                 lea             rdi, [rsp + SIZE]
@@ -16,8 +16,7 @@ _start:
                 ; set pointers
                 lea             rdi, [rsp + SIZE]       ; #1 long number
                 lea             rsi, [rsp]              ; #2 long number
-                lea             r8, [rsp + 2 * SIZE]    ; tmp
-                lea             r9, [rsp + 4 * SIZE]    ; ans
+                lea             r9, [rsp + 2 * SIZE]    ; ans
 
                 ; get ans to r9
                 call            mul_long_long
@@ -29,18 +28,20 @@ _start:
                 mov             al, 0x0a
                 call            write_char
                 jmp             exit
+
 ; multiply two long number
 ;    rdi -- address of multiplier #1 (long number)
 ;    rsi -- address of multiplier #2 (long number)
 ;    rcx -- length of long numbers in qwords
 ; result:
-;    result is written to rdi
+;    result is written to r9
 mul_long_long:
                 push            rdi
                 push            rsi
                 push            rcx
-
-                ; set zero to tmp, ans, r11
+                sub             rsp, SIZE
+                mov             r8, rsp
+                ; set zero to tmp, ans, index
                 push            rdi
                 mov             rdi, r8
                 call            set_zero
@@ -56,20 +57,14 @@ mul_long_long:
 .loop:          
                 ; tmp = y
                 push            rdi
-                push            rcx
-                lea             rcx, [rcx + r12]
-                lea             rdi, [r8]
+                mov             rdi, r8
                 call            copy_long_long
-                lea             rdi, [r8 + SIZE]
-                call            set_zero
-                pop             rcx
                 pop             rdi
 
                 ; tmp = ((x[i] * y) << (64 * index))
                 push            rdi
-                add             rcx, LEN
                 mov             rbx, [rdi]
-                lea             rdi, [r8]
+                mov             rdi, r8
                 call            mul_long_short
                 pop             rdi
 
@@ -77,10 +72,9 @@ mul_long_long:
                 push            rdi
                 push            rsi
 
-                lea             rdi, [r9 + r12 * 8]
-                lea             rsi, [r8]
+                mov             rdi, r9
+                mov             rsi, r8
                 call            add_long_long
-                sub             rcx, LEN
 
                 pop             rsi
                 pop             rdi
@@ -88,9 +82,10 @@ mul_long_long:
                 ; next iteration
                 lea             rdi, [rdi + 8]
                 inc             r12
-                dec             rcx
+                cmp             r12, rcx
                 jnz             .loop
 
+                add             rsp, SIZE
                 pop             rcx
                 pop             rsi
                 pop             rdi
@@ -120,28 +115,30 @@ copy_long_long:
                 pop             rdi
                 ret
 
-; adds two long number
+; adds two long number with offset
 ;    rdi -- address of summand #1 (long number)
 ;    rsi -- address of summand #2 (long number)
 ;    rcx -- length of long numbers in qwords
+;    r12 -- offset
 ; result:
 ;    sum is written to rdi
 add_long_long:
                 push            rdi
                 push            rsi
                 push            rcx
-
+                push            r12
                 clc
 .loop:
                 mov             rax, [rsi]
                 lea             rsi, [rsi + 8]
-                adc             [rdi], rax
+                adc             [rdi + r12 * 8], rax
                 lea             rdi, [rdi + 8]
                 dec             rcx
                 jnz             .loop
 
-                adc             [rdi], r15
+                adc             [rdi + r12 * 8], r15
 
+                pop             r12
                 pop             rcx
                 pop             rsi
                 pop             rdi
