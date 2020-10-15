@@ -15,7 +15,7 @@ _start:
 
                 ; set pointers
                 lea             rdi, [rsp + SIZE]       ; #1 long number
-                lea             rsi, [rsp]              ; #2 long number
+                mov             rsi, rsp                ; #2 long number
                 lea             r9, [rsp + 2 * SIZE]    ; ans
 
                 ; get ans to r9
@@ -74,7 +74,7 @@ mul_long_long:
 
                 mov             rdi, r9
                 mov             rsi, r8
-                call            add_long_long
+                call            add_long_long_with_offset
 
                 pop             rsi
                 pop             rdi
@@ -120,9 +120,10 @@ copy_long_long:
 ;    rsi -- address of summand #2 (long number)
 ;    rcx -- length of long numbers in qwords
 ;    r12 -- offset
+;    r15 -- carry from multiply long and short
 ; result:
 ;    sum is written to rdi
-add_long_long:
+add_long_long_with_offset:
                 push            rdi
                 push            rsi
                 push            rcx
